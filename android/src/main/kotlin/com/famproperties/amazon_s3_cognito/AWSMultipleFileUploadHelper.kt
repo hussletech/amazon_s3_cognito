@@ -38,11 +38,11 @@ class AwsMultipleFileUploadHelper(private val context: Context,
         transferOptions.transferThreadPoolSize = 18
 
         return  TransferUtility.builder()
-            .s3Client(amazonS3Client).
-            transferUtilityOptions(transferOptions)
-            .defaultBucket(BUCKET_NAME)
-            .context(context)
-            .build()
+                .s3Client(amazonS3Client).
+                transferUtilityOptions(transferOptions)
+                .defaultBucket(BUCKET_NAME)
+                .context(context)
+                .build()
     }
 
     private fun getUploadedUrl(key: String): String {

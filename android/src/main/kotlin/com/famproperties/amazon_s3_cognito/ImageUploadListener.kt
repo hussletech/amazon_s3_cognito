@@ -16,15 +16,15 @@ class ImageUploadListener: EventChannel.StreamHandler {
 
     fun sendToStream(imageData:ImageData){
         val imageDataHashMap: HashMap<String, Any?>
-                =  hashMapOf(
-            "filePath" to imageData.filePath,
-            "fileName" to imageData.fileName,
-            "uniqueId" to imageData.uniqueId,
-            "isUploadError" to imageData.isUploadError,
-            "state" to imageData.state,
-            "amazonImageUrl" to imageData.amazonImageUrl,
-            "progress" to imageData.progress,
-            "imageUploadFolder" to imageData.imageUploadFolder)
+            =  hashMapOf(
+                "filePath" to imageData.filePath,
+                "fileName" to imageData.fileName,
+                "uniqueId" to imageData.uniqueId,
+                "isUploadError" to imageData.isUploadError,
+                "state" to imageData.state,
+                "amazonImageUrl" to imageData.amazonImageUrl,
+                "progress" to imageData.progress,
+                "imageUploadFolder" to imageData.imageUploadFolder)
 
         sink?.success(imageDataHashMap)
     }

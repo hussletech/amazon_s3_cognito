@@ -7,7 +7,7 @@ import 'image_data.dart';
 
 class AmazonS3Cognito {
   static const MethodChannel _channel =
-  const MethodChannel('amazon_s3_cognito');
+      const MethodChannel('amazon_s3_cognito');
 
   static Future<String?> get platformVersion async {
     final String? version = await _channel.invokeMethod('getPlatformVersion');
@@ -34,7 +34,7 @@ class AmazonS3Cognito {
       'needMultipartUpload': needMultipartUpload
     };
     final String? imagePath =
-    await _channel.invokeMethod('uploadImage', params);
+        await _channel.invokeMethod('uploadImage', params);
     return imagePath;
   }
 
@@ -54,7 +54,7 @@ class AmazonS3Cognito {
       'imageUploadFolder': folderInBucketWhereImgIsUploaded,
     };
     final String? imagePath =
-    await _channel.invokeMethod('deleteImage', params);
+        await _channel.invokeMethod('deleteImage', params);
     return imagePath;
   }
 
@@ -83,7 +83,7 @@ class AmazonS3Cognito {
       'needMultipartUpload': needMultipartUpload
     };
     final String? imagePath =
-    await _channel.invokeMethod('uploadImages', params);
+        await _channel.invokeMethod('uploadImages', params);
     return imagePath;
   }
 }

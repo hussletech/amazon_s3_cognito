@@ -6,293 +6,185 @@ import AWSCore
 
 public class SwiftAmazonS3CognitoPlugin: NSObject, FlutterPlugin {
 
-   var region1:AWSRegionType = AWSRegionType.USEast1
-   var subRegion1:AWSRegionType = AWSRegionType.EUWest1
+private static let imageUploadEventChannel:String = "amazon_s3_cognito_images_upload_steam"
 
-
-
+private static  var imageUploadStreamHandler = ImageUploadStreamHandler()
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "amazon_s3_cognito", binaryMessenger: registrar.messenger())
+
+
+    FlutterEventChannel(name: imageUploadEventChannel, binaryMessenger: registrar.messenger())
+        .setStreamHandler(imageUploadStreamHandler)
+
     let instance = SwiftAmazonS3CognitoPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
+
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-          if(call.method.elementsEqual("uploadImageToAmazon")){
-              let arguments = call.arguments as? NSDictionary
-              let imagePath = arguments!["filePath"] as? String
-              let bucket = arguments!["bucket"] as? String
-              let identity = arguments!["identity"] as? String
-
-              var imageAmazonUrl = ""
-              let fileUrl = NSURL(fileURLWithPath: imagePath!)
-
-              let uploadRequest = AWSS3TransferManagerUploadRequest()
-              uploadRequest?.bucket = bucket
-              uploadRequest?.key = nameGenerator()
-
-            var contentType = "image/jpeg"
-            if(imagePath!.contains(".")){
-                var index = imagePath!.lastIndex(of: ".")
-                index = imagePath!.index(index!, offsetBy: 1)
-                if(index != nil){
-                    let extention = String(imagePath![index!...])
-                    print("extension"+extention);
-                    if(extention.lowercased().contains("png") ||
-                    extention.lowercased().contains("jpg") ||
-                        extention.lowercased().contains("jpeg") ){
-                        contentType = "image/"+extention
-                    }else{
-                        if(contentType.contains("pdf")){
-                             contentType = "application/pdf";
-                        }else{
-                             contentType = "application/*";
-                        }
-
-                    }
-
-                }
-            }
-
-            uploadRequest?.contentType = contentType
-
-//            if(imagePath!.lowercased().contains("jpeg") ||
-//                imagePath!.lowercased().contains("png")){
-//                uploadRequest?.contentType = "image/jpeg"
-//
-//            }else if(imagePath!.lowercased().contains("pdf")){
-//                 uploadRequest?.contentType = "application/pdf"
-//            }
-
-              //uploadRequest?.contentType = "image/jpeg"
-              uploadRequest?.body = fileUrl as URL
-              uploadRequest?.acl = .publicReadWrite
-
-              let credentialsProvider = AWSCognitoCredentialsProvider(
-                  regionType: AWSRegionType.USEast1,
-                  identityPoolId: identity!)
-              let configuration = AWSServiceConfiguration(
-                  region: AWSRegionType.USEast1,
-                  credentialsProvider: credentialsProvider)
-              AWSServiceManager.default().defaultServiceConfiguration = configuration
-
-              AWSS3TransferManager.default().upload(uploadRequest!).continueWith { (task) -> AnyObject? in
-                  if let error = task.error {
-                      print("❌ Upload failed (\(error))")
-                  }
-                  if task.result != nil {
-                      imageAmazonUrl = "https://s3.amazonaws.com/\(bucket!)/\(uploadRequest!.key!)"
-                      print("✅ Upload successed (\(imageAmazonUrl))")
-                  } else {
-                      print("❌ Unexpected empty result.")
-                  }
-                  result(imageAmazonUrl)
-                  return nil
-              }
-          }else if(call.method.elementsEqual("uploadImage")){
-              uploadImageForRegion(call,result: result)
+         if(call.method.elementsEqual("uploadImage")){
+            uploadSingleImage(call,result: result)
           }else if(call.method.elementsEqual("deleteImage")){
               deleteImage(call,result: result)
-          }
+          }else if(call.method.elementsEqual("uploadImages")){
+            uploadMultipleImages(call,result: result)
+        }
       }
 
-      public func nameGenerator() -> String{
-          let date = Date()
-          let formatter = DateFormatter()
-          formatter.dateFormat = "ddMMyyyy"
-          let result = formatter.string(from: date)
-          return "IMG" + result + String(Int64(date.timeIntervalSince1970 * 1000)) + "jpeg"
-      }
+    func uploadSingleImage(_ call: FlutterMethodCall, result: @escaping FlutterResult){
+              let arguments = call.arguments as? NSDictionary
+        let imagePath:String = arguments!["filePath"] as! String
+        let bucket:String = arguments!["bucket"] as! String
+
+        let imageUploadFolder:String? = arguments!["imageUploadFolder"] as? String
+
+        let identity:String = arguments!["identity"] as! String
+
+        let fileName = arguments!["imageName"] as! String
 
 
-      func uploadImageForRegion(_ call: FlutterMethodCall, result: @escaping FlutterResult){
-          let arguments = call.arguments as? NSDictionary
-          let imagePath = arguments!["filePath"] as? String
-          let bucket = arguments!["bucket"] as? String
-          let identity = arguments!["identity"] as? String
-          let fileName = arguments!["imageName"] as? String
-          let region = arguments!["region"] as? String
-          let subRegion = arguments!["subRegion"] as? String
+        let region = arguments!["region"] as! String
+
+        let subRegion = arguments!["subRegion"] as! String
+
+
 
         let contentTypeParam = arguments!["contentType"] as? String
 
+        var uniqueId = arguments!["uniqueId"] as? String
 
-          print("region" + region!)
-
-          print("subregion " + subRegion!)
-          if(region != nil && subRegion != nil){
-              initRegions(region: region!, subRegion: subRegion!)
-          }
-
-
-          var imageAmazonUrl = ""
-          let fileUrl = NSURL(fileURLWithPath: imagePath!)
-
-          let uploadRequest = AWSS3TransferManagerUploadRequest()
-          uploadRequest?.bucket = bucket
-          uploadRequest?.key = fileName
-
-
-        var contentType = "image/jpeg"
-        if(contentTypeParam != nil &&
-            contentTypeParam!.count > 0){
-            contentType = contentTypeParam!
+        if(uniqueId == nil){
+            uniqueId = "-1"
         }
 
-        if(contentTypeParam == nil || contentTypeParam!.count == 0 &&  fileName!.contains(".")){
-                       var index = fileName!.lastIndex(of: ".")
-                       index = fileName!.index(index!, offsetBy: 1)
-                       if(index != nil){
-                           let extention = String(fileName![index!...])
-                           print("extension"+extention);
-                           if(extention.lowercased().contains("png") ||
-                           extention.lowercased().contains("jpg") ||
-                               extention.lowercased().contains("jpeg") ){
-                               contentType = "image/"+extention
-                           }else{
+        var needMultipartUpload = arguments!["needMultipartUpload"] as? Bool
 
-                            if(extention.lowercased().contains("pdf")){
-                                contentType = "application/pdf"
-                                }else{
-                                contentType = "application/*"
-                                }
-
-                           }
-
-                       }
-                   }
-
-        uploadRequest?.contentType = contentType
-//        if(fileName!.lowercased().contains("jpeg") ||
-//            fileName!.lowercased().contains("png")){
-//            uploadRequest?.contentType = "image/jpeg"
-//
-//        }else if(fileName!.lowercased().contains("pdf")){
-//             uploadRequest?.contentType = "application/pdf"
-//        }
-
-          uploadRequest?.body = fileUrl as URL
-
-          uploadRequest?.acl = .publicReadWrite
+        if(needMultipartUpload == nil){
+            needMultipartUpload = false
+        }
 
 
-          let credentialsProvider = AWSCognitoCredentialsProvider(
-              regionType: region1,
-              identityPoolId: identity!)
-          let configuration = AWSServiceConfiguration(
-              region: subRegion1,
-              credentialsProvider: credentialsProvider)
-          AWSServiceManager.default().defaultServiceConfiguration = configuration
+        let multiAwsUploadHelper:AwsMultiImageUploadHelper = AwsMultiImageUploadHelper.init(region: region, subRegion: subRegion, identity: identity, bucketName: bucket, needFileProgressUpdateAlso: false)
 
 
-          AWSS3TransferManager.default().upload(uploadRequest!).continueWith { (task) -> AnyObject? in
-              if let error = task.error {
-                  print("❌ Upload failed (\(error))")
-              }
+        let imageData:ImageData = ImageData(filePath: imagePath, fileName: fileName, uniqueId: uniqueId!, contentType: contentTypeParam, imageFolderInBucket: imageUploadFolder)
+
+        if(needMultipartUpload!){
+
+            multiAwsUploadHelper.uploadVeryLargeSingleFile(imageDataObj: imageData){ (awsUploadResult) in
+
+                print("reesult is " + awsUploadResult)
+
+                result(awsUploadResult)
+
+            }
 
 
-              if task.result != nil {
+        }else{
+            multiAwsUploadHelper.uploadSingleFile(imageDataObj: imageData){ (awsUploadResult) in
+
+                print("reesult is " + awsUploadResult)
+
+                result(awsUploadResult)
+
+            }
+
+        }
 
 
-                  imageAmazonUrl = "https://s3-" + self.subRegion1.stringValue +  ".amazonaws.com/\(bucket!)/\(uploadRequest!.key!)"
-                  print("✅ Upload successed (\(imageAmazonUrl))")
-              } else {
-                  print("❌ Unexpected empty result.")
-              }
-              result(imageAmazonUrl)
-              return nil
-          }
-      }
+    }
 
-      func deleteImage(_ call: FlutterMethodCall, result: @escaping FlutterResult){
-          let arguments = call.arguments as? NSDictionary
-          let bucket = arguments!["bucket"] as? String
-          let identity = arguments!["identity"] as? String
-          let fileName = arguments!["imageName"] as? String
-          let region = arguments!["region"] as? String
-          let subRegion = arguments!["subRegion"] as? String
+    func uploadMultipleImages(_ call: FlutterMethodCall, result: @escaping FlutterResult)  {
+
+        let arguments = call.arguments as? NSDictionary
+
+        let bucket = arguments!["bucket"] as? String
+        let identityPoolId = arguments!["identity"] as? String
+        let region = arguments!["region"] as? String
+        let subRegion = arguments!["subRegion"] as? String
+
+        let needFileProgressUpdateAlso = arguments!["needProgressUpdateAlso"] as? Bool
+
+        var needMultipartUpload = arguments!["needMultipartUpload"] as? Bool
+
+        if(needMultipartUpload == nil){
+            needMultipartUpload = false
+        }
+
+        var needProgressUpdate:Bool = false
+        if(needFileProgressUpdateAlso != nil){
+            needProgressUpdate = needFileProgressUpdateAlso!
+        }
+
+        let imagesListString = arguments!["imageDataList"] as? String
+
+        if(imagesListString != nil){
+
+            let jsonData = imagesListString!.data(using: .utf8)!
+
+            var images:[ImageData] = []
+            if let json = try! JSONSerialization.jsonObject(with: jsonData, options: .allowFragments) as? [Any] {
+                for item in json {
+                    if let object = item as? [String: Any] {
+                        // ID
+
+                        let filePath = object["filePath"] as! String
+                        let fileName = object["fileName"] as! String
+                        let uniqueId = object["uniqueId"] as! String
+                        let contentType = object["contentType"] as? String
+
+                        let imageUploadFolder = object["imageUploadFolder"] as? String
+
+                        let imageDataInner:ImageData = ImageData(filePath: filePath, fileName: fileName, uniqueId: uniqueId, contentType: contentType,imageFolderInBucket: imageUploadFolder)
+                         images.append(imageDataInner)
+
+                    }
+                }
+
+            }
 
 
-          if(region != nil && subRegion != nil){
-              initRegions(region: region!, subRegion: subRegion!)
-          }
+            if(region == nil || subRegion == nil || bucket == nil || identityPoolId == nil  ){
+                result("function parameters are not supplied properly. Region, subregion, buckernamen identityPoolId cannot be null or empty")
+            }else{
+                let multiAwsUploadHelper:AwsMultiImageUploadHelper = AwsMultiImageUploadHelper.init(region: region!, subRegion: subRegion!, identity: identityPoolId!, bucketName: bucket!, needFileProgressUpdateAlso: needProgressUpdate)
 
-          let credentialsProvider = AWSCognitoCredentialsProvider(
-              regionType: region1,
-              identityPoolId: identity!)
-          let configuration = AWSServiceConfiguration(
-              region: subRegion1,
-              credentialsProvider: credentialsProvider)
-          AWSServiceManager.default().defaultServiceConfiguration = configuration
+                if(!needMultipartUpload!){
+                    multiAwsUploadHelper.uploadMultipleImages(imagesData:images, imageUploadSreamHelper:SwiftAmazonS3CognitoPlugin.imageUploadStreamHandler)
+                }else{
+                    multiAwsUploadHelper.uploadVeryLargeFiles(imagesData:images, imageUploadSreamHelper:SwiftAmazonS3CognitoPlugin.imageUploadStreamHandler)
+                }
 
-          AWSS3.register(with: configuration!, forKey: "defaultKey")
-          let s3 = AWSS3.s3(forKey: "defaultKey")
-          let deleteObjectRequest = AWSS3DeleteObjectRequest()
-          deleteObjectRequest?.bucket = bucket // bucket name
-          deleteObjectRequest?.key = fileName // File name
-          s3.deleteObject(deleteObjectRequest!).continueWith { (task:AWSTask) -> AnyObject? in
-              if let error = task.error {
-                  print("Error occurred: \(error)")
-                  result("Error occurred: \(error)")
-                  return nil
-              }
-              print("image deleted successfully.")
-              result("image deleted successfully.")
-              return nil
-          }
+            }
+        }else{
+            result("image list is empty")
+        }
 
 
-      }
 
-      public func initRegions(region:String,subRegion:String){
-          region1 = getRegion(name: region)
-          subRegion1 = getRegion(name: subRegion)
-      }
+    }
 
-      public func getRegion( name:String ) -> AWSRegionType{
+    func deleteImage(_ call: FlutterMethodCall, result: @escaping FlutterResult){
+        let arguments = call.arguments as? NSDictionary
+        let bucket = arguments!["bucket"] as! String
+        let identity = arguments!["identity"] as! String
+        let fileName = arguments!["imageName"] as! String
+        let region = arguments!["region"] as! String
+        let subRegion = arguments!["subRegion"] as! String
 
-          if(name == "US_EAST_1"){
-              return AWSRegionType.USEast1
-          }else if(name == "AP_SOUTHEAST_1"){
-              return AWSRegionType.APSoutheast1
-          }else if(name == "US_EAST_2"){
-              return AWSRegionType.USEast2
-          }else if(name == "EU_WEST_1"){
-              return AWSRegionType.EUWest1
-          }else if(name == "CA_CENTRAL_1"){
-              return AWSRegionType.CACentral1
-          }else if(name == "CN_NORTH_1"){
-              return AWSRegionType.CNNorth1
-          } else if(name == "CN_NORTHWEST_1"){
-              return AWSRegionType.CNNorthWest1
-          }else if(name == "EU_CENTRAL_1"){
-              return AWSRegionType.EUCentral1
-          } else if(name == "EU_WEST_2"){
-              return AWSRegionType.EUWest2
-          }else if(name == "EU_WEST_3"){
-              return AWSRegionType.EUWest3
-          } else if(name == "SA_EAST_1"){
-              return AWSRegionType.SAEast1
-          } else if(name == "US_WEST_1"){
-              return AWSRegionType.USWest1
-          }else if(name == "US_WEST_2"){
-              return AWSRegionType.USWest2
-          } else if(name == "AP_NORTHEAST_1"){
-              return AWSRegionType.APNortheast1
-          } else if(name == "AP_NORTHEAST_2"){
-              return AWSRegionType.APNortheast2
-          } else if(name == "AP_SOUTHEAST_1"){
-              return AWSRegionType.APSoutheast1
-          }else if(name == "AP_SOUTHEAST_2"){
-              return AWSRegionType.APSoutheast2
-          } else if(name == "AP_SOUTH_1"){
-              return AWSRegionType.APSouth1
-          }else if(name == "ME_SOUTH_1"){
-            return AWSRegionType.MESouth1
-          }
+        let imageUploadFolder = arguments!["imageUploadFolder"] as? String
 
-          return AWSRegionType.Unknown
+        let multiAwsUploadHelper:AwsMultiImageUploadHelper = AwsMultiImageUploadHelper.init(region: region, subRegion: subRegion, identity: identity, bucketName: bucket, needFileProgressUpdateAlso: false)
 
-      }
+
+        multiAwsUploadHelper.deleteImage(fileName: fileName, folderToUploadTo: imageUploadFolder)
+            { deleteImageResult in
+                result(deleteImageResult)
+        }
+
+
+    }
+
+
 }

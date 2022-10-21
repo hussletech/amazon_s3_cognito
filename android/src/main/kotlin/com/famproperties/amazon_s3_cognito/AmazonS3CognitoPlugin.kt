@@ -34,23 +34,6 @@ class AmazonS3CognitoPlugin :FlutterPlugin,MethodCallHandler, ActivityAware , Se
 
     private  lateinit var imageUploadListener:ImageUploadListener
 
-
-    companion object {
-        @JvmStatic
-        fun registerWith(registrar: Registrar) {
-            val channel = MethodChannel(registrar.messenger(), "amazon_s3_cognito")
-            val instance = AmazonS3CognitoPlugin()
-            instance.activity = registrar.activity()!!
-            channel.setMethodCallHandler(instance)
-
-
-            val eventChannel = EventChannel(registrar.messenger(), "amazon_s3_cognito_images_upload_steam")
-
-
-        }
-    }
-
-
     override fun onMethodCall(call: MethodCall, result: Result) {
         val filePath = call.argument<String>("filePath")
         val bucket = call.argument<String>("bucket")
@@ -147,8 +130,8 @@ class AmazonS3CognitoPlugin :FlutterPlugin,MethodCallHandler, ActivityAware , Se
                     needProgressUpdateAlso = true;
                 }
                 awsMultiImageRegionHelper = AwsMultipleFileUploadHelper(
-                    context,
-                    bucket!!,identity!!, region!!, subRegion!!,list,imageUploadListener,needProgressUpdateAlso )
+                        context,
+                        bucket!!,identity!!, region!!, subRegion!!,list,imageUploadListener,needProgressUpdateAlso )
 
                 awsMultiImageRegionHelper?.uploadImages()
                 result.success("Uploaded started successfully")

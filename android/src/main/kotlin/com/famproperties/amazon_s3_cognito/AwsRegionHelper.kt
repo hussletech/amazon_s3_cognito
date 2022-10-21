@@ -39,11 +39,11 @@ class AwsRegionHelper(private val context: Context,
         transferOptions.transferThreadPoolSize = 18
 
         return  TransferUtility.builder()
-            .s3Client(amazonS3Client).
-            transferUtilityOptions(transferOptions)
-            .defaultBucket(BUCKET_NAME)
-            .context(context)
-            .build()
+                .s3Client(amazonS3Client).
+                transferUtilityOptions(transferOptions)
+                .defaultBucket(BUCKET_NAME)
+                .context(context)
+                .build()
     }
 
 
@@ -148,3 +148,5 @@ class AwsRegionHelper(private val context: Context,
 
 
 }
+
+
