@@ -4,10 +4,7 @@ version: 0.7.7
 homepage: https://github.com/prachiFam/amazon_s3_cognito
 
 environment:
-  sdk: ">=2.12.0 <=3.0.0"
-  # Flutter versions prior to 1.12 did not support the
-  # flutter.plugin.platforms map.
-  flutter: ">=1.12.0"
+  sdk: ">=3.0.0 <4.0.0"
 
 # The following section is specific to Flutter.
 flutter:
@@ -32,10 +29,10 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^2.0.0
+  #  flutter_lints: ^2.0.0
 
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
+  # For information on the generic Dart part of this file, see the
+  # following page: https://dart.dev/tools/pub/pubspec
 
 
 
